@@ -1,5 +1,6 @@
-#ifndef _GLOBALUTILITIES_INCLUDED
-#define _GLOBALUTILITIES_INCLUDED
+#pragma once
+#ifndef _RETXT_GLOBALUTILITIES_INCLUDED
+#define _RETXT_GLOBALUTILITIES_INCLUDED
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *
@@ -7,7 +8,10 @@
  *
  * * * on the target OS:
  *
- * _COMPILING_FOR_WINDOWS                target OS is any version of Windows
+ * _COMPILING_FOR_DOS					 target OS is any version of DOS
+ * _COMPILING_FOR_MSDOS					 target OS is MS-DOS
+ * _COMPILING_FOR_WIN16					 target OS is Windows 3.1 or older versions
+ * _COMPILING_FOR_WINDOWS                target OS is Windows (95 and newer)
  * _COMPILING_FOR_MACH                   target OS is any one based on Mach kernel
  * _COMPILING_FOR_APPLE                  target OS is any of those belonging to Apple
  * _COMPILING_FOR_WATCHOS                target OS is watchOS (Apple Watch OS)
@@ -16,18 +20,28 @@
  * _COMPILING_FOR_OSX                    target OS is Mac OS X
  * _COMPILING_FOR_ANDROID                target OS is Android
  * _COMPILING_FOR_AIX                    target OS is AIX
+ * _COMPILING_FOR_QNX                    target OS is QNX
+ * _COMPILING_FOR_QNXNEUTRINO            target OS is QNX Neutrino
+ * _COMPILING_FOR_QNX4                   target OS is QNX 4
+ * _COMPILING_FOR_IBMOS400				 target OS is IBM OS/400
+ * _COMPILING_FOR_DRAGONFLYBSD			 target OS is DragonFly BSD
+ * _COMPILING_FOR_BSDOS					 target OS is BSD/OS
+ * _COMPILING_FOR_NETBSD				 target OS is NetBSD
+ * _COMPILING_FOR_OPENBSD				 target OS is OpenBSD
+ * _COMPILINF_FOR_FREEBSD				 target OS is FreeBSD
+ * _COMPILING_FOR_SYLLABLE				 target OS is Syllable
+ * _COMPILING_FOR_ECOS					 target OS is eCos
+ * _COMPILING_FOR_GNUHURD				 target OS is GNU (GNU/Hurd)
  * _COMPILING_FOR_LINUX                  target OS is any one based on Linux kernel
  * _COMPILING_FOR_GNULINUX               target OS is GNU/Linux
- * _COMPILING_FOR_OTHER_UNIX_SYSTEMS     target OS is any UNIX system not covered by other macros
- * _COMPILING_FOR_UNIX                   target OS is any UNIX system
+ * _COMPILING_FOR_OTHER_UNIX_SYSTEMS     target OS is any BSD system not covered by other macros
+ * _COMPILING_FOR_OTHER_UNIX_SYSTEMS     target OS is any UNIX/UNIX-like system not covered by other macros
+ * _COMPILING_FOR_UNIX                   target OS is any UNIX/UNIX-like system
+ * _COMPILING_FOR_BSD                    target OS is any BSD system
  * _COMPILING_FOR_POSIX_COMPLIANTS       target OS is any POSIX-compliant system
  * _COMPILING_FOR_UNKNOWN_OS             target OS is unknown (not any of the ones above)
  *
  * * * on C/C++ features and full versions support:
- *
- *   * (specific feature support macros are defined as an integer representing the supported version of
- *   * the feature; e.g.: if v0.9 lambda expressions are supported, _SUPPORTS_LAMBDA_EXPRESSIONS is
- *   * defined as 09, otherwise if v1.0 is supported, it is defined as 10, and so on)
  *
  * _NONCPP                               code won't be compiled as C++ (non-C++ code only)
  * _NO_C99_SUPPORT                       no reliable support for C99 (non-C++ code only)
@@ -74,59 +88,59 @@
  *
  * byte                                  'unsigned char'
  *
- * * renamed typedefs from stdint.h/cstdint:
+ * * aliases from stdint.h/cstdint:
  *
- *  (signed types)      (unsigned types)
+ *   (signed types)       (unsigned types)
  *
- *    Integer type with the maximum width supported:
+ *   Integer type with the maximum width supported:
  *
- *    intmax               uintmax
+ *   intmax                uintmax
  *
- *    Integer types with a width of exactly 8, 16, 32, or 64 bits.
+ *   Integer types with a width of exactly 8, 16, 32, or 64 bits.
  *
- *    int8                 uint8
- *    int16                uint16
- *    int32                uint32
- *    int64                uint64
+ *   int8                  uint8
+ *   int16                 uint16
+ *   int32                 uint32
+ *   int64                 uint64
  *
- *    Integer type with a minimum of 8, 16, 32, or 64 bits.
- *    No other integer type exists with lesser size and at least
- *  the specified width.
+ *   Integer type with a minimum of 8, 16, 32, or 64 bits.
+ *   No other integer type exists with lesser size and at least
+ *   the specified width.
  *
- *    intleast8            uintleast8
- *    intleast16           uintleast16
- *    intleast32           uintleast32
- *    intleast64           uintleast64
+ *   intleast8             uintleast8
+ *   intleast16            uintleast16
+ *   intleast32            uintleast32
+ *   intleast64            uintleast64
  *
- *    Integer type with a minimum of 8, 16, 32, or 64 bits.
- *    At least as fast as any other integer type with at least
- *  the specified width.
+ *   Integer type with a minimum of 8, 16, 32, or 64 bits.
+ *   At least as fast as any other integer type with at least
+ *   the specified width.
  *
- *    intfast8             uintfast8
- *    intfast16            uintfast16
- *    intfast32            uintfast32
- *    intfast64            uintfast64
+ *   intfast8              uintfast8
+ *   intfast16             uintfast16
+ *   intfast32             uintfast32
+ *   intfast64             uintfast64
  *
- *    Integer type capable of holding a value converted from/to
- *  a void pointer without changing its value.
+ *   Integer type capable of holding a value converted from/to
+ *   a void pointer without changing its value.
  *
- *    intptr                uintptr
+ *   intptr                uintptr
  *
- *    =>    The above typedefs may not be defined in some library
- *        implementations and *will* not be defined if no types with
- *         such characteristics exist.
+ *   => The above typedefs may not be defined in some library
+ *      implementations and *will* not be defined if no types with
+ *      such characteristics exist.
  * 
  * 
  * * types comparison
  * 
- * isTheSameType<type1, type2>::value     true if type1 and type2 are the same type
- * isTheSameType(type1, type2)             same as "isTheSameType<type1, type2>::value"
- * isBooleanType(type)                     true if type is the same as "bool"
+ * isTheSameType<type1, type2>::value    true if type1 and type2 are the same type
+ * isTheSameType(type1, type2)           same as "isTheSameType<type1, type2>::value"
+ * isBooleanType(type)                   true if type is the same as "bool"
  * isCharacterType(type)                 true if type is a character type (char, wchar_t...)
  * isSignedIntegerType(type)             true if type is a signed integer type (int, long int...)
- * isUnsignedIntegerType(type)             true if type is an unsigned integer type (size_t, unsigned int...)
- * isIntegerType(type)                     true if type is an integer type (size_t, int...) 
- * isIntegralType(type)                     true if type is an integral type (size_t, char, int, bool...)
+ * isUnsignedIntegerType(type)           true if type is an unsigned integer type (size_t, unsigned int...)
+ * isIntegerType(type)                   true if type is an integer type (size_t, int...) 
+ * isIntegralType(type)                  true if type is an integral type (size_t, char, int, bool...)
  * isFloatingPointType(type)             true if type is a floating point type (float, double...)
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -146,22 +160,53 @@
 #endif
 
 #if __STDC_VERSION__ >= 199901L
-#elif defined(__FUNCTION__)
-    #define currentFunctionName __PROPER_STR(__FUNCTION__)
+#else
+	#if defined(__FUNCTION__)
+		#define currentFunctionName (__PROPER_STR(__FUNCTION__))
+	#endif
+	#if defined(__funcsig__)
+		#define currentFunctionSignature (__PROPER_STR(__funcsig__))
+	#else
+		#define currentFunctionSignature currentFunctionName
+	#endif
 #endif
-// #define currentFunctionSignature __PROPER_STR(__funcsig__)
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * target OS detection                                               *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  */
 
+// DOS
+#if defined(__DOS__) || defined(MSDOS) || defined(_MSDOS) || defined(__MSDOS__)
+	#define _COMPILING_FOR_DOS
+	#if defined(MSDOS) || defined(_MSDOS) || defined(__MSDOS__)
+		#define _COMPILING_FOR_MSDOS
+		#define targetOSName (__PROPER_STR("MS-DOS"))
+	#else
+		#define targetOSName (__PROPER_STR("DOS"))
+	#endif
+	
+// Windows CE
+#elif defined(_WIN32_WCE)
+	#define _COMPILING_FOR_WINDOWSCE
+	#define targetOSName (__PROPER_STR("Windows CE"))
+	
+// Windows 3.1 and older
+#elif defined(_WINDOWS) || defined(__WINDOWS__) || defined(__WINDOWS_386__)
+	#define _COMPILING_FOR_WIN16
+	#if defined(__WINDOWS_386__)
+		#define 
+		#define targetOSName (__PROPER_STR("Windows (Win16 32-bit)"))
+	#else
+		#define targetOSName (__PROPER_STR("Windows (Win16)"))
+	#endif
+
 // Windows
-#if defined(_WIN32) || defined(_WIN64) || defined(Q_OS_WIN32)
+#elif defined(_WIN32) || defined(_WIN64) || defined(__NT__) || defined(Q_OS_WIN32)
     #define _COMPILING_FOR_WINDOWS
     #define targetOSName (__PROPER_STR("Windows"))
-    #if defined(_WIN64) || defined(Q_OS_WIN64)
-        #define _COMPILING_FOR_64BITS_ARCHITECTURE
+	#if defined(_WIN64) || defined(Q_OS_WIN64)
+		#define _COMPILING_FOR_64BITS_ARCHITECTURE
     #endif
 
 // Mach-based systems
@@ -188,17 +233,118 @@
     #endif
 
 // Android
-#elif defined(__ANDROID__) || defined(ANDROID) || defined(Q_OS_ANDROID)
+#elif defined(__ANDROID__) || defined(ANDROID) || defined(__ANDROID_API__) || defined(Q_OS_ANDROID)
     #define _COMPILING_FOR_ANDROID
     #define targetOSName (__PROPER_STR("Android"))
 
 // AIX
-#elif defined(_AIX) || defined(Q_OS_AIX)
+#elif defined(_AIX) || defined(__TOS_AIX__) || defined(Q_OS_AIX)
     #define _COMPILING_FOR_AIX
     #define targetOSName (__PROPER_STR("AIX"))
+    
+// QNX
+#elif defined(__QNX__) || defined(__QNXNTO__)
+	#define _COMPILING_FOR_QNX
+	#if defined(__QNXNTO__)
+		#define _COMPILING_FOR_QNXNEUTRINO
+		#define targetOSName (__PROPER_STR("QNX Neutrino"))
+	#else
+		#define _COMPILING_FOR_QNX4
+		#define targetOSName (__PROPER_STR("QNX 4"))
+	#endif
+	
+// MINIX
+#elif defined(__minix)
+	#define _COMPILING_FOR_MINIX
+    #define targetOSName (__PROPER_STR("MINIX"))
+	
+// LynxOS
+#elif defined(__Lynx__)
+	#define _COMPILING_FOR_LYNXOS
+    #define targetOSName (__PROPER_STR("LynxOS"))
+    
+// eCos
+#elif defined(__ECOS)
+	#define _COMPILING_FOR_ECOS
+	#define targetOSName (__PROPER_STR("eCos"))
+
+// Syllable
+#elif defined(__SYLLABLE__)
+	#define _COMPILING_FOR_SYLLABLE
+	#define targetOSName (__PROPER_STR("Syllable"))
+	
+// MorphOS
+#elif defined(__MORPHOS__)
+	#define _COMPILING_FOR_MORPHOS
+	#define targetOSName (__PROPER_STR("MorphOS"))
+	
+// BeOS
+#elif defined(__BEOS__)
+	#define _COMPILING_FOR_BEOS
+	#define targetOSName (__PROPER_STR("BeOS"))
+	
+// AmigaOS
+#elif defined(AMIGA) || defined(__amigaos__)
+	#define _COMPILING_FOR_AMIGAOS
+	#define targetOSName (__PROPER_STR("AmigaOS"))
+	
+// Ultrix
+#elif defined(ultrix) || defined(__ultrix) || defined(__ultrix__) || (defined(unix) && defined(vax))
+	#define _COMPILING_FOR_ULTRIX
+	#define targetOSName (__PROPER_STR("Ultrix"))
+	
+// IBM OS/400
+#elif defined(__OS400__)
+	#define _COMPILING_FOR_IBMOS400
+	#define targetOSName (__PROPER_STR("IBM OS/400"))
+	
+// UNICOS
+#elif defined(_UNICOS)
+	#define _COMPILING_FOR_UNICOS
+	#define targetOSName (__PROPER_STR("UNICOS"))
+	
+// HP-UX
+#elif defined(_hpux) || defined(hpux) || defined(__hpux)
+	#define _COMPILING_FOR_HPUX
+	#define targetOSName (__PROPER_STR("HP-UX"))
+	
+// OS/2
+#elif defined(OS2) || defined(_OS2)|| defined(__OS2__)|| defined(__TOS_OS2__)
+	#define _COMPILING_FOR_OS2
+	#define targetOSName (__PROPER_STR("OS/2"))
+	
+// GNU/kFreeBSD
+#elif defined(__FreeBSD_kernel__) && defined(__GLIBC__)
+	#define _COMPILING_FOR_GNUKFREEBSD
+	#define targetOSName (__PROPER_STR("GNU/kFreeBSD"))
+	
+// Dragonfly BSD
+#elif defined(__DragonFly__)
+	#define _COMPILING_FOR_DRAGONFLYBSD
+	#define targetOSName (__PROPER_STR("DragonFly BSD"))
+	
+// BSD/OS
+#elif defined(__bsdi__)
+	#define _COMPILING_FOR_BSDOS
+	#define targetOSName (__PROPER_STR("BSD/OS"))
+
+// NetBSD
+#elif defined(__NetBSD__)
+	#define _COMPILING_FOR_NETBSD
+	#define targetOSName (__PROPER_STR("NetBSD"))
+
+// OpenBSD
+#elif defined(__OpenBSD__)
+	#define _COMPILING_FOR_OPENBSD
+	#define targetOSName (__PROPER_STR("OpenBSD"))
+
+// FreeBSD
+#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+	#define _COMPILING_FOR_FREEBSD
+	#define targetOSName (__PROPER_STR("FreeBSD"))
 
 // GNU/Linux
-#elif defined(__linux) || defined(__linux__) || defined(linux) || defined(Q_OS_LINUX)
+#elif defined(__linux) || defined(__linux__) || defined(__LINUX__) || defined(linux) || defined(Q_OS_LINUX)
     #define _COMPILING_FOR_LINUX
     #if defined(__gnu_linux__)
         #define _COMPILING_FOR_GNULINUX
@@ -207,12 +353,29 @@
         #define targetOSName (__PROPER_STR("some Linux-based OS"))
     #endif
 
-// UNIX systems
-#elif defined(__unix) || defined(__unix__) || defined(unix) || defined(Q_OS_UNIX)
+// GNU (GNU/Hurd)
+#elif defined(__gnu_hurd__) || defined(__GNU__)
+	#define _COMPILING_FOR_GNUHURD
+	#define targetOSName (__PROPER_STR("GNU/Hurd"))
+	
+// uncovered BSD systems	
+#elif defined(BSD)
+    #define _COMPILING_FOR_OTHER_BSD_SYSTEMS
+    #define targetOSName (__PROPER_STR("some BSD system"))
+
+// uncovered UNIX systems
+#elif defined(__unix) || defined(__unix__) || defined(__UNIX__) || defined(unix) || defined(Q_OS_UNIX)
     #define _COMPILING_FOR_OTHER_UNIX_SYSTEMS
     #define targetOSName (__PROPER_STR("some UNIX system"))
 #endif
-#if defined(__unix) || defined(__unix__) || defined(unix) || defined(Q_OS_UNIX)
+
+// BSD systems (all)
+#if defined(BSD) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__bsdi__) || defined(__DragonFly__)
+    #define _COMPILING_FOR_BSD
+#endif
+
+// UNIX systems (all)
+#if defined(__unix) || defined(__unix__) || defined(__UNIX__) || defined(unix) || defined(Q_OS_UNIX)
     #define _COMPILING_FOR_UNIX
 #endif
 
@@ -232,30 +395,13 @@
 #endif
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- * compiler identification / features support                        *
+ * compiler identification                                           *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  */
 
 #define compilerNameAndVersion (__PROPER_STR("?"))
 #define compilerLongName (__PROPER_STR("?"))
 #define compilerShortName (__PROPER_STR("?"))
-
-//
-
-// C++11 full support detection
-#if _SUPPORTS_FULL_CPP11_LANG && _SUPPORTS_FULL_CPP11_LIB
-#define _FULL_CPP11_SUPPORT
-#endif
-
-// C++14 full support detection
-#if _SUPPORTS_FULL_CPP14_LANG && _SUPPORTS_FULL_CPP14_LIB
-#define _FULL_CPP14_SUPPORT
-#endif
-
-// C++17 full support detection
-#if _SUPPORTS_FULL_CPP17_LANG && _SUPPORTS_FULL_CPP17_LIB
-#define _FULL_CPP17_SUPPORT
-#endif
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * utility strings and values                                        *
@@ -334,7 +480,7 @@ struct isTheSameType<generic, generic>
 
 #define isTheSameType(generic1, generic2) isTheSameType<generic1,generic2>::value
 
-#define isBooleanType(generic)           (isTheSameType(generic, bool))
+#define isBooleanType(generic)         (isTheSameType(generic, bool))
 
 #define isCharacterType(generic)       (isTheSameType(generic, char) || \
                                         isTheSameType(generic, unsigned char) || \
@@ -351,10 +497,10 @@ struct isTheSameType<generic, generic>
                                         isTheSameType(generic, unsigned long int) || \
                                         isTheSameType(generic, unsigned long long int))
 
-#define isIntegerType(generic)               (isSignedIntegerType(generic) || \
+#define isIntegerType(generic)         (isSignedIntegerType(generic) || \
                                         isUnsignedIntegerType(generic))
                                         
-#define isIntegralType(generic)           (isSignedIntegerType(generic) || \
+#define isIntegralType(generic)        (isSignedIntegerType(generic) || \
                                         isUnsignedIntegerType(generic) || \
                                         isCharacterType(generic) || \
                                         isBooleanType(generic))
@@ -363,5 +509,5 @@ struct isTheSameType<generic, generic>
                                         isTheSameType(generic, double) || \
                                         isTheSameType(generic, long double))
 
-#endif // _GLOBALUTILITIES_INCLUDED
+#endif // _RETXT_GLOBALUTILITIES_INCLUDED
 
