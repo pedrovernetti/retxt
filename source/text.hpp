@@ -27,6 +27,14 @@ namespace // internal parts
                 ((bytes[position + 2] & 0x3F) <<  6) | 
                 (bytes[position + 3] & 0x3F));
     }
+    
+    inline bool isCloseToLF( const byte * bytes, 
+							 const size_t totalBytes, 
+							 const size_t position )
+    {
+        return ((((position + 1) < totalBytes) && (bytes[position + 1] == 10)) ||
+                ((position > 0) && (bytes[position + 1] == 10)));
+	}
 }
 
 namespace retxt
@@ -63,15 +71,14 @@ namespace retxt
                     if ((character == 0) || (character == space)) break;
                     this->CharacterCount++;
                     if (character < 128) buffer.enqueue(character);
-                    else if (character >= 194)
+                    else if ((character >= 194) && (character <= 240))
                     {
                         if ((character <= 223) && ((i + 1) < stringSize))
                             buffer.enqueue(decoded2UTF8Bytes(string, i));
                         else if ((character <= 239) && ((i + 2) < stringSize))
                             buffer.enqueue(decoded3UTF8Bytes(string, i));
-                        else if ((character <= 240) && ((i + 3) < stringSize))
+                        else if ((i + 3) < stringSize)
                             buffer.enqueue(decoded4UTF8Bytes(string, i));
-                        else this->CharacterCount--;
                     }
                     else this->CharacterCount--;
                 }
@@ -91,59 +98,25 @@ namespace retxt
             word( simpleQueue<uint32_t> & buffer, 
                   const size_t positionInText,
                   const uint16_t encodedSize,
-                  const uint16_t followingSpaces ) :
-                Characters(new uint32_t[buffer.size()]), 
-                PositionInText(positionInText), CharacterCount(buffer.size()),
-                EncodedSize(encodedSize), FollowingSpaces(followingSpaces)
-            {
-                for (size_t i = 0, size = buffer.size(); i < size; i++)
-                    this->Characters[i] = buffer.dequeue();
-            }
+                  const uint16_t followingSpaces );
+            
+            word( const uint32_t character, 
+                  const size_t positionInText,
+                  const uint16_t followingSpaces );
             
             public:
             
-            word( const word & another ) :
-                Characters(new uint32_t[another.CharacterCount]),
-                PositionInText(another.PositionInText), 
-                CharacterCount(another.CharacterCount), 
-                EncodedSize(another.EncodedSize),
-                FollowingSpaces(another.FollowingSpaces)
-            {
-                for (size_t i = 0, size = another.CharacterCount; i < size; i++)
-                    this->Characters[i] = another.Characters[i];
-            }
+            word( const word & another );
             
-            word() :
-                Characters(nullptr), PositionInText(0), 
-                CharacterCount(0), EncodedSize(0), FollowingSpaces(0)
-            {
-            }
+            word();
             
-            word( const char * UTF8Text ) :
-                Characters(nullptr), PositionInText(0), 
-                CharacterCount(0), EncodedSize(0), FollowingSpaces(0)
-            {
-                this->load((const byte *)(UTF8Text));
-            }
+            word( const char * UTF8Text );
             
-            word( const char * UTF8Text, const size_t textSize ) :
-                Characters(nullptr), PositionInText(0), 
-                CharacterCount(0), EncodedSize(0), FollowingSpaces(0)
-            {
-                this->load(((const byte *)(UTF8Text)), textSize);
-            }
+            word( const char * UTF8Text, const size_t textSize );
             
-            word( std::string UTF8Text ) :
-                Characters(nullptr), PositionInText(0), 
-                CharacterCount(0), EncodedSize(0), FollowingSpaces(0)
-            {
-                this->load(((const byte *)(UTF8Text.data())), UTF8Text.size());
-            }
+            word( std::string UTF8Text );
             
-            ~word()
-            {
-                this->clear();
-            }
+            ~word();
             
             void clear()
             {
@@ -290,18 +263,7 @@ namespace retxt
                 return (*this);
             }
             
-            inline word & operator = ( const word & another )
-            {
-                this->clear();
-                this->Characters = new uint32_t[another.CharacterCount];
-                for (size_t i = 0, size = another.CharacterCount; i < size; i++)
-                    this->Characters[i] = another.Characters[i];
-                this->CharacterCount = another.CharacterCount;
-                this->EncodedSize = another.EncodedSize;
-                this->PositionInText = another.PositionInText;
-                this->FollowingSpaces = another.FollowingSpaces;
-                return (*this);
-            }
+            word & operator = ( const word & another );
             
             inline word & operator = ( const char * UTF8Text )
             {
@@ -317,70 +279,30 @@ namespace retxt
                 return (*this);
             }
         };
-    
+        
         protected:
         
         word * Words;
         
+        size_t * LineBreaks;
+        
         size_t CharacterCount;
         size_t WordCount;
+        size_t LineCount;
         
         uint32_t Separator;
         
         uint16_t LeadingSpaces;
         
-        void loadLeadingSpaces( const byte * UTF8Text, const size_t textSize )
-        {
-            size_t i, limit = (textSize < (uint16_t)(-1)) ? textSize : (uint16_t)(-1);
-            const uint32_t space = this->Separator;
-            for (i = 0; (UTF8Text[i] == space) && (i < limit); i++);
-            this->LeadingSpaces = i;
-            this->CharacterCount = this->LeadingSpaces;
-        }
+        lineBreakType LineBreak;
+        
+        void pushProperLineBreak( byte * UTF8String, size_t & position ) const;
+        
+        void loadLeadingSpaces( const byte * UTF8Text, const size_t textSize );
         
         void tokenizeAndEnqueue( const byte * UTF8Text, 
                                  const size_t textSize,
-                                 simpleQueue<word> & textBuffer )
-        {
-            simpleQueue<uint32_t> buffer;
-            size_t i = this->LeadingSpaces;
-            size_t spaces = 0, size = i, position = i;
-            const uint32_t space = this->Separator;                
-            for (byte character; size < textSize; i++, size++)
-            {
-                character = UTF8Text[i];
-                if (character == space) 
-                {
-                    for (spaces = 0; (UTF8Text[i] == space) && (i <= textSize); i++, spaces++);
-                    this->CharacterCount += spaces;
-                    size += spaces;
-                    //size += wordsFollowingSpaces(
-                    textBuffer.enqueue(word(buffer, position, size - position, spaces));
-                    character = UTF8Text[i];
-                    position = this->CharacterCount;
-                }
-                this->CharacterCount++;
-                if (character == 0) break;
-                //else if (character == 10) buffer
-                else if (character < 128) buffer.enqueue(character);
-                else if (character >= 194)
-                {
-                    if ((character <= 223) && ((i + 1) < textSize))
-                        buffer.enqueue(decoded2UTF8Bytes(UTF8Text, i));
-                    else if ((character <= 239) && ((i + 2) < textSize))
-                        buffer.enqueue(decoded3UTF8Bytes(UTF8Text, i));
-                    else if ((character <= 240) && ((i + 3) < textSize))
-                        buffer.enqueue(decoded4UTF8Bytes(UTF8Text, i));
-                    else this->CharacterCount--;
-                }
-                else this->CharacterCount--;
-            }
-            for (spaces = 0; (UTF8Text[i] == space) && (i <= textSize); i++, spaces++);
-                    this->CharacterCount += spaces;
-                    size += spaces;
-            textBuffer.enqueue(word(buffer, position, size - position, spaces));
-            this->CurrentSize = size;
-        }
+                                 simpleQueue<word> & textBuffer );
         
         void loadFromQueue( simpleQueue<word> & textBuffer );
         
@@ -397,15 +319,27 @@ namespace retxt
         
         text( const text & another );
         
-        text( const byte * UTF8Text, const uint32_t spaceCharacter = 32 );
+        text( const byte * UTF8Text, 
+			  const uint32_t spaceCharacter = 32, 
+			  const lineBreakType lineBreak = lineBreakType::CRLFLineBreak );
         
-        text( const byte * UTF8Text, const size_t textSize, const uint32_t spaceCharacter = 32 );
+        text( const byte * UTF8Text, 
+              const size_t textSize, 
+              const uint32_t spaceCharacter = 32, 
+			  const lineBreakType lineBreak = lineBreakType::CRLFLineBreak );
         
-        text( const char * UTF8Text, const uint32_t spaceCharacter = 32 );
+        text( const char * UTF8Text, 
+			  const uint32_t spaceCharacter = 32, 
+			  const lineBreakType lineBreak = lineBreakType::CRLFLineBreak );
         
-        text( const char * UTF8Text, const size_t textSize, const uint32_t spaceCharacter = 32 );
+        text( const char * UTF8Text, 
+			  const size_t textSize, 
+			  const uint32_t spaceCharacter = 32, 
+			  const lineBreakType lineBreak = lineBreakType::CRLFLineBreak );
         
-        text( std::string UTF8Text, const uint32_t spaceCharacter = 32 );
+        text( std::string UTF8Text, 
+			  const uint32_t spaceCharacter = 32, 
+			  const lineBreakType lineBreak = lineBreakType::CRLFLineBreak );
         
         ~text();
         
@@ -422,6 +356,14 @@ namespace retxt
             return this->CurrentSize;
         }
         
+        inline size_t encodedLineBreakSize() const
+        {
+			if ((this->LineBreak == lineBreakType::CRLFLineBreak) ||
+				(this->LineBreak == lineBreakType::LFCRLineBreak))
+				return 2;
+            return 1;
+        }
+        
         inline size_t decodedSize() const
         {
             return (this->CharacterCount * sizeof(uint32_t));
@@ -436,6 +378,11 @@ namespace retxt
         {
             return this->WordCount;
         }
+        
+        inline size_t lineCount() const
+        {
+			return this->LineCount;
+		}
         
         inline word firstWord() const
         {
@@ -475,7 +422,7 @@ namespace retxt
         word * NMostFrequentWords( const size_t N ) const
         {
             simpleQueue<word> word
-        }*/
+        }
         
         inline pair<uint32_t, size_t> * charactersFrequency() const
         {
@@ -504,7 +451,7 @@ namespace retxt
         
         inline word pop( const word pushedWord )
         {
-        }
+        }*/
         
         inline void toUppercase()
         {
@@ -530,6 +477,16 @@ namespace retxt
             return this->Separator = character;
         }
         
+        inline uint32_t lineBreak() const
+        {
+			return this->LineBreak;
+		}
+        
+        inline uint32_t setLineBreak( const lineBreakType lineBreak )
+        {
+            return this->LineBreak = lineBreak;
+        }
+        
         inline void trimLeadingSpaces()
         {
             this->CharacterCount -= this->LeadingSpaces;
@@ -553,12 +510,18 @@ namespace retxt
         
         word * toArrayOfWords() const;
         
-        uint32_t * * toArrayOfRawWords() const;
+        uint32_t * * toArrayOfUTF32Words() const;
         
         byte * * toArrayOfUTF8Words() const;
         
         std::string * toArrayOfWordsAsUTF8Strings() const;
         
+        uint32_t * * toArrayOfUTF32Lines() const;
+        
+        byte * * toArrayOfUTF8Lines() const;
+        
+		std::string * toArrayOfLinesAsUTF8Strings() const;
+	
         byte * toUTF8( const bool zeroTerminated = true ) const;
         
         int32_t * toUTF32( const bool zeroTerminated = true ) const;
@@ -625,21 +588,6 @@ namespace retxt
             
         };
     };
-    
-    template <typename charType, typename wordTagType>
-    using taggedWord = typename taggedText<charType, wordTagType>::word;
-        
-    template <typename wordTagType>
-    using taggedASCIIText = taggedText<char, wordTagType>;
-    
-    template <typename wordTagType>
-    using taggedASCIIWord = typename taggedText<char, wordTagType>::word;
-    
-    template <typename wordTagType>
-    using taggedUnicodeText = taggedText<int32_t, wordTagType>;
-    
-    template <typename wordTagType>
-    using taggedUnicodeWord = typename taggedText<int32_t, wordTagType>::word;
 }
 
 #endif // _RETXT_TEXT_INCLUDED
