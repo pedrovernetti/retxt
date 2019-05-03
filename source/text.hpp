@@ -28,6 +28,20 @@ namespace // internal parts
                 (bytes[position + 3] & 0x3F));
     }
     
+    template <typename generic>
+	void pushLineBreak( retxt::lineBreakType lineBreak, 
+						generic * UTF8String, 
+						size_t & position )
+	{
+		if (lineBreak == retxt::lineBreakType::CRLFLineBreak)
+			UTF8String[position++] = 13;
+		if (lineBreak | retxt::lineBreakType::LFLineBreak)
+			UTF8String[position++] = 10;
+		if ((lineBreak | retxt::lineBreakType::CRLineBreak) &&
+			(lineBreak != retxt::lineBreakType::CRLFLineBreak))
+			UTF8String[position++] = 13;
+	}
+    
     inline bool isCloseToLF( const byte * bytes, 
 							 const size_t totalBytes, 
 							 const size_t position )
@@ -58,37 +72,7 @@ namespace retxt
             uint16_t EncodedSize;
             byte FollowingSpaces;
             
-            void load( const byte * string, const size_t stringSize )
-            {
-                using namespace unicode::UTF8;
-                if (stringSize == 0) return;
-                simpleQueue<uint32_t> buffer;
-                size_t i = 0, spaces = 0, size = 0;
-                uint32_t space = this->Separator;
-                for (byte character; size < stringSize; i++, size++)
-                {
-                    character = string[i];
-                    if ((character == 0) || (character == space)) break;
-                    this->CharacterCount++;
-                    if (character < 128) buffer.enqueue(character);
-                    else if ((character >= 194) && (character <= 240))
-                    {
-                        if ((character <= 223) && ((i + 1) < stringSize))
-                            buffer.enqueue(decoded2UTF8Bytes(string, i));
-                        else if ((character <= 239) && ((i + 2) < stringSize))
-                            buffer.enqueue(decoded3UTF8Bytes(string, i));
-                        else if ((i + 3) < stringSize)
-                            buffer.enqueue(decoded4UTF8Bytes(string, i));
-                    }
-                    else this->CharacterCount--;
-                }
-                for (; (string[i] == space) && (i <= stringSize); i++, spaces++, size++);
-                this->Characters = new uint32_t[this->CharacterCount];
-                this->FollowingSpaces = spaces;
-                this->EncodedSize = size;
-                for (i = 0, size = buffer.size(); i < size; i++)
-                    this->Characters[i] = buffer.dequeue();
-            }
+            void load( const byte * string, const size_t stringSize );
         
             inline void load( const byte * UTF8Text )
             {
@@ -178,53 +162,9 @@ namespace retxt
                     this->Characters[i] = unicode::lowercase(this->Characters[i]);
             }
             
-            byte * toUTF8( const bool zeroTerminated = true ) const
-            {
-                if (this->EncodedSize < 1) return new byte[1]{};
-                size_t byteCount = this->EncodedSize, whichByte, size, i;
-                byte * UTF8String = new byte[byteCount + zeroTerminated];
-                uint32_t * characters = this->Characters;
-                for (whichByte = 0, i = 0, size = this->CharacterCount; i < size; i++)
-                {
-                    if (characters[i] < 128) UTF8String[whichByte++] = characters[i];
-                    else if (characters[i] < 2048) 
-                    {
-                        UTF8String[whichByte++] = (((characters[i] >> 6) & 0x1F) | 0xC0);
-                        UTF8String[whichByte++] = ((characters[i] & 0x3F) | 0x80);
-                    }
-                    else if (characters[i] < 65536) 
-                    {
-                        UTF8String[whichByte++] = (((characters[i] >> 12) & 0xF) | 0xE0);
-                        UTF8String[whichByte++] = (((characters[i] >> 6) & 0x3F) | 0x80);
-                        UTF8String[whichByte++] = ((characters[i] & 0x3F) | 0x80);
-                    }
-                    else
-                    {
-                        UTF8String[whichByte++] = (((characters[i] >> 18) & 0x7) | 0xF0);
-                        UTF8String[whichByte++] = (((characters[i] >> 12) & 0x3F) | 0x80);
-                        UTF8String[whichByte++] = (((characters[i] >> 6) & 0x3F) | 0x80);
-                        UTF8String[whichByte++] = ((characters[i] & 0x3F) | 0x80);
-                    }
-                }
-                for (size += this->FollowingSpaces; i < size; i++)
-                    UTF8String[whichByte++] = this->Separator;
-                if (zeroTerminated) UTF8String[byteCount] = 0;
-                return UTF8String;
-            }
+            byte * toUTF8( const bool zeroTerminated = true ) const;
             
-            int32_t * toUTF32( const bool zeroTerminated = true ) const
-            {
-                if (this->EncodedSize < 1) return new int32_t[1]{};
-                size_t characterCount = this->CharacterCount + this->FollowingSpaces, i;
-                size_t size = this->CharacterCount;
-                int32_t * UTF32String = new int32_t[characterCount + zeroTerminated];
-                uint32_t * characters = this->Characters;                
-                for (i = 0; i < size; i++) UTF32String[i] = characters[i];                    
-                for (size += this->FollowingSpaces; i < size; i++)
-                    UTF32String[i++] = this->Separator;                    
-                if (zeroTerminated) UTF32String[characterCount] = 0;
-                return UTF32String;
-            }
+            uint32_t * toUTF32( const bool zeroTerminated = true ) const;
             
             inline byte * toArray() const
             {
@@ -236,13 +176,7 @@ namespace retxt
                 return this->toUTF8();
             }
             
-            std::string stringified() const
-            {
-                byte * array = this->toUTF8();
-                std::string newString((char *)(array));
-                delete[] array;
-                return newString;
-            }
+            std::string stringified() const;
             
             inline uint32_t & operator [] ( const size_t position ) const
             {
@@ -286,6 +220,8 @@ namespace retxt
         
         size_t * LineBreaks;
         
+        size_t EncodedSize;
+        
         size_t CharacterCount;
         size_t WordCount;
         size_t LineCount;
@@ -299,6 +235,8 @@ namespace retxt
         void pushProperLineBreak( byte * UTF8String, size_t & position ) const;
         
         void loadLeadingSpaces( const byte * UTF8Text, const size_t textSize );
+        
+        void insertFinalLineBreakIfNeeded( simpleQueue<word> textBuffer );
         
         void tokenizeAndEnqueue( const byte * UTF8Text, 
                                  const size_t textSize,
@@ -347,13 +285,18 @@ namespace retxt
         {
             if (this->Words != nullptr) delete[] this->Words;
             this->Words = nullptr;
-            this->CurrentSize = this->CharacterCount = this->WordCount = 0;
+            this->EncodedSize = this->CharacterCount = this->WordCount = 0;
             this->LeadingSpaces = 0;
         }
         
+        inline bool isEmpty() const
+        {
+            return (this->EncodedSize == 0);
+        }
+
         inline size_t encodedSize() const
         {
-            return this->CurrentSize;
+            return this->EncodedSize;
         }
         
         inline size_t encodedLineBreakSize() const
@@ -374,9 +317,14 @@ namespace retxt
             return this->CharacterCount;
         }
         
-        inline size_t wordCount() const
+        inline size_t internalWordCount() const
         {
             return this->WordCount;
+        }
+        
+        inline size_t wordCount() const
+        {
+            return (this->WordCount - this->LineCount);
         }
         
         inline size_t lineCount() const
@@ -404,7 +352,11 @@ namespace retxt
             return this->Words[N];
         }
         
+        // NthLine
+        
         size_t count( const uint32_t & whichCharacter ) const;
+        
+        // count word/string
         
         size_t smallestWordSize() const;
         
@@ -413,7 +365,28 @@ namespace retxt
         double averageWordSize() const;
         
         size_t mostFrequentWordSize( const bool preferTheSmaller = false ) const;
-        
+			
+		size_t smallestLineSize( const bool considerEmptyLines = true ) const;
+	
+		inline size_t smallestNonEmptyLineSize() const
+		{
+			return this->smallestLineSize(false);
+		}
+	
+		size_t largestLineSize() const;
+	
+		inline double averageLineSize() const
+		{
+			if (!(this->LineCount)) return this->CharacterCount;
+			return (((double)(this->CharacterCount))/((double)(this->LineCount)));
+		}
+
+		inline double averageLineWordCount() const
+		{
+			if (!(this->LineCount)) return this->WordCount;
+			return (((double)(this->WordCount))/((double)(this->LineCount)));
+		}
+		
         /*word * NLargestWords( const size_t N ) const
         {
             simpleQueue<word> words;
@@ -487,12 +460,9 @@ namespace retxt
             return this->LineBreak = lineBreak;
         }
         
-        inline void trimLeadingSpaces()
-        {
-            this->CharacterCount -= this->LeadingSpaces;
-            this->CurrentSize -= this->LeadingSpaces;
-            this->LeadingSpaces = 0;
-        }
+        void trimLeadingSpaces();
+        
+        void trimLeadingLineBreaks();
         
         void trimFollowingSpaces();
         
@@ -524,11 +494,11 @@ namespace retxt
 	
         byte * toUTF8( const bool zeroTerminated = true ) const;
         
-        int32_t * toUTF32( const bool zeroTerminated = true ) const;
+        uint32_t * toUTF32( const bool zeroTerminated = true ) const;
         
         inline byte * toArray() const
         {
-            return this->toUTF8();
+            return this->toUTF8(true);
         }
         
         std::string stringified() const;
@@ -567,26 +537,31 @@ namespace retxt
             this->load((const byte *)(UTF8Text.data()), UTF8Text.size());
             return (*this);
         }
-    };
-    
-    template <typename charType = int32_t, typename wordTagType = byte>
-    class taggedText : public text
-    {
-        public:
         
-        class word : public text::word
+        inline operator word * () const
         {
-            template <typename textCharType, typename tagType>
-            friend class taggedText;
-            
-            protected:
-            
-            wordTagType Tag;
-            
-            public:
-            
-            
-        };
+			return this->toArrayOfWords();
+		}
+        
+        inline operator byte * () const
+        {
+			return this->toArray();
+		}
+		
+        inline operator char * () const
+        {
+			return ((char *)(this->toArray()));
+		}
+		
+		inline operator uint32_t * () const
+		{
+			return this->toUTF32(true);
+		}
+		
+		inline operator int32_t * () const
+		{
+			return ((int32_t *)(this->toUTF32(true)));
+		}
     };
 }
 
