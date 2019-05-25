@@ -4,9 +4,20 @@
 
 #include "globalUtilities.hpp"
 #include "basicDataStructures.hpp"
+#include "charEncoding.hpp"
 
 namespace // internal parts
-{
+{	
+	inline byte UTF8EncodedSize( const uint32_t codepoint )
+	{
+		if (codepoint <= 0x7F) return 1;
+		if (codepoint <= 0x7FF) return 2;
+		if (codepoint <= 0xFFFF) return 3;
+		if (codepoint <= 0x1FFFFF) return 4;
+		if (codepoint <= 0x3FFFFFF) return 5;
+		return 6;
+	}
+            
     inline uint32_t decoded2UTF8Bytes( const byte * bytes, const size_t position )
     {
         return (((bytes[position] & 0x1F) << 6) | 
@@ -54,7 +65,7 @@ namespace // internal parts
 namespace retxt
 {    
     class text : 
-        public dataStructure<byte>,
+        public virtual dataStructure<byte>,
         public stringifiable
     {
         public:
@@ -67,12 +78,14 @@ namespace retxt
             
             uint32_t * Characters;
             size_t PositionInText;
-            uint32_t Separator =  32;
+            uint32_t Separator;
             uint16_t CharacterCount;
             uint16_t EncodedSize;
             byte FollowingSpaces;
             
             void load( const byte * string, const size_t stringSize );
+        
+            void load( const uint32_t * string, const size_t stringSize );
         
             inline void load( const byte * UTF8Text )
             {
@@ -82,23 +95,31 @@ namespace retxt
             word( simpleQueue<uint32_t> & buffer, 
                   const size_t positionInText,
                   const uint16_t encodedSize,
-                  const uint16_t followingSpaces );
+                  const uint16_t followingSpaces,
+                  const uint32_t spaceCharacter = 32 );
             
             word( const uint32_t character, 
                   const size_t positionInText,
-                  const uint16_t followingSpaces );
+                  const uint16_t followingSpaces,
+                  const uint32_t spaceCharacter = 32 );
             
             public:
             
             word( const word & another );
             
-            word();
+            word( const uint32_t spaceCharacter = 32 );
             
-            word( const char * UTF8Text );
+            word( const char * UTF8Text, const uint32_t spaceCharacter = 32 );
             
-            word( const char * UTF8Text, const size_t textSize );
+            word( const char * UTF8Text, 
+                  const size_t textSize, 
+                  const uint32_t spaceCharacter = 32 );
             
-            word( std::string UTF8Text );
+            word( std::string UTF8Text, const uint32_t spaceCharacter = 32 );
+            
+            word ( const uint32_t * UTF32Text, 
+				   const size_t textSize, 
+				   const uint32_t spaceCharacter = 32 );
             
             ~word();
             
@@ -125,6 +146,11 @@ namespace retxt
                 return this->PositionInText;
             }
             
+            inline uint32_t spaceCharacter() const
+            {
+				return this->Separator;
+			}
+            
             inline int16_t followingSpaces() const
             {
                 return this->FollowingSpaces;
@@ -139,6 +165,12 @@ namespace retxt
             {
                 this->FollowingSpaces = leaveOne;
             }
+            
+            inline uint32_t setSpaceCharacter( const uint32_t character )
+            {
+				if (character != 10) return (this->Separator = character);
+				return this->Separator;
+			}
                 
             inline uint32_t NthCharacter( const size_t N ) const
             {
@@ -149,6 +181,42 @@ namespace retxt
                 }
                 return this->Characters[N];
             }
+            
+            inline bool startsWith( uint32_t character ) const
+            {
+				if (!this->CharacterCount) return false;
+				return ((character) ? (this->Characters[0] == character) : true);
+			}
+            
+            bool startsWith( word prefix ) const;
+            
+            inline bool endsWith( uint32_t character ) const
+            {
+				if (!this->CharacterCount) return false;
+				if (!character) return true;
+				return (this->Characters[this->CharacterCount - 1] == character);
+			}
+            
+            bool endsWith( word suffix ) const;
+            
+            inline void removeSuffix( const size_t suffixLength )
+            {
+				if (suffixLength > this->CharacterCount) return;
+				if (suffixLength == this->CharacterCount) 
+				{
+					this->EncodedSize = this->FollowingSpaces * UTF8EncodedSize(this->Separator);
+					this->CharacterCount = 0;
+				}
+				else
+				{
+					const size_t newEnd = (this->CharacterCount - (suffixLength + 1));
+					for (size_t i = this->CharacterCount - 1; i > newEnd; i--)
+					{
+						this->EncodedSize -= UTF8EncodedSize(this->Characters[i]);
+					}
+					this->CharacterCount -= suffixLength;
+				}
+			}
             
             inline void toUppercase()
             {
@@ -175,6 +243,21 @@ namespace retxt
             {
                 return this->toUTF8();
             }
+			
+			inline explicit operator char * () const
+			{
+				return ((char *)(this->toUTF8()));
+			}
+			
+			inline explicit operator uint32_t * () const
+			{
+				return this->toUTF32(true);
+			}
+			
+			inline explicit operator int32_t * () const
+			{
+				return ((int32_t *)(this->toUTF32(true)));
+			}
             
             std::string stringified() const;
             
@@ -334,13 +417,13 @@ namespace retxt
         
         inline word firstWord() const
         {
-            if (this->WordCount == 0) return word();
+            if (this->WordCount == 0) return word(this->Separator);
             return this->Words[0];
         }
         
         inline word lastWord() const
         {
-            if (this->WordCount == 0) return word();
+            if (this->WordCount == 0) return word(this->Separator);
             return this->Words[this->WordCount - 1];
         }
         
@@ -447,7 +530,8 @@ namespace retxt
         
         inline uint32_t setSpaceCharacter( const uint32_t character )
         {
-            return this->Separator = character;
+            if (character != 10) return (this->Separator = character);
+            return this->Separator;
         }
         
         inline uint32_t lineBreak() const
@@ -461,9 +545,7 @@ namespace retxt
         }
         
         void trimLeadingSpaces();
-        
-        void trimLeadingLineBreaks();
-        
+
         void trimFollowingSpaces();
         
         inline void trimSpaces()
@@ -477,6 +559,57 @@ namespace retxt
             this->trimLeadingSpaces();
             this->trimWordsFollowingSpaces(false);
         }
+                
+        void trimLeadingLineBreaks();
+        
+        template <typename function>
+        void forEachWord( function && action )
+        {
+			word buffer;
+			for (size_t i = 0, size = this->WordCount, totalChars = 0; i < size; i++)
+			{
+				if ((this->Words[i].CharacterCount) && (this->Words[i].Characters[0] == 10))
+					continue;
+				buffer = this->Words[i];
+				action(this->Words[i]);
+				this->Words[i].PositionInText = totalChars;
+				this->Words[i].Separator = this->Separator;
+				this->CharacterCount -= (buffer.CharacterCount - this->Words[i].CharacterCount);
+				this->CharacterCount -= (buffer.FollowingSpaces - this->Words[i].FollowingSpaces);
+				totalChars += (this->Words[i].CharacterCount + this->Words[i].FollowingSpaces);
+				this->EncodedSize -= (buffer.EncodedSize - this->Words[i].EncodedSize);
+			}
+		}
+		
+		template <typename function>
+		void forEachCharacter( function && action )
+		{
+			uint32_t buffer;
+			const size_t wordCount = this->WordCount;
+			for (size_t i = 0, j, charCount; i < wordCount; i++)
+			{
+				this->EncodedSize -= this->Words[i].EncodedSize;
+				this->Words[i].EncodedSize = 0;
+				for (j = 0, charCount = this->Words[i].CharacterCount; j < charCount; j++)
+				{
+					buffer = this->Words[i].Characters[j];
+					if (buffer != 10) 
+					{
+						action(this->Words[i].Characters[j]);
+						if (this->Words[i].Characters[j] == 10) 
+							this->Words[i].Characters[j] = buffer;
+					}
+					this->Words[i].EncodedSize += UTF8EncodedSize(this->Words[i].Characters[j]);
+				}
+				this->EncodedSize += this->Words[i].EncodedSize;
+				buffer = this->Words[i].Separator;
+				action(this->Words[i].Separator);
+				if (this->Words[i].Separator == 10) this->Words[i].Separator = buffer;
+			}
+			buffer = this->Separator;
+			action(this->Separator);
+			if (this->Separator == 10) this->Separator = buffer;
+		}
         
         word * toArrayOfWords() const;
         
@@ -505,7 +638,7 @@ namespace retxt
         
         inline word operator [] ( const size_t N ) const
         {
-            return this->Words[N];
+            return this->NthCharacter(N);
         }
         
         inline text & operator () ( const char * UTF8Text )
@@ -538,7 +671,47 @@ namespace retxt
             return (*this);
         }
         
-        inline operator word * () const
+        inline bool operator < ( const text & another ) const
+        {
+            return (this->EncodedSize < another.EncodedSize);
+        }
+        
+        inline bool operator > ( const text & another ) const
+        {
+            return (this->EncodedSize > another.EncodedSize);
+        }
+        
+        inline bool operator <= ( const text & another ) const
+        {
+            return (this->EncodedSize <= another.EncodedSize);
+        }
+        
+        inline bool operator >= ( const text & another ) const
+        {
+            return (this->EncodedSize >= another.EncodedSize);
+        }
+
+        inline bool operator < ( const size_t size ) const
+        {
+            return (this->EncodedSize < size);
+        }
+        
+        inline bool operator > ( const size_t size ) const
+        {
+            return (this->EncodedSize > size);
+        }
+        
+        inline bool operator <= ( const size_t size ) const
+        {
+            return (this->EncodedSize <= size);
+        }
+        
+        inline bool operator >= ( const size_t size ) const
+        {
+            return (this->EncodedSize >= size);
+        }
+        
+        inline explicit operator word * () const
         {
 			return this->toArrayOfWords();
 		}
@@ -548,17 +721,17 @@ namespace retxt
 			return this->toArray();
 		}
 		
-        inline operator char * () const
+        inline explicit operator char * () const
         {
 			return ((char *)(this->toArray()));
 		}
 		
-		inline operator uint32_t * () const
+		inline explicit operator uint32_t * () const
 		{
 			return this->toUTF32(true);
 		}
 		
-		inline operator int32_t * () const
+		inline explicit operator int32_t * () const
 		{
 			return ((int32_t *)(this->toUTF32(true)));
 		}
