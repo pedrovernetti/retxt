@@ -306,12 +306,12 @@ namespace retxt
         {
         }
         
-        inline generic head() const
+        inline generic & head() const
         {
             return this->First->Value;
         }
         
-        inline generic tail() const
+        inline generic & tail() const
         {
             return this->Last->Value;
         }
